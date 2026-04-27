@@ -1,12 +1,19 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
 from routers import chat
+from init_db import init_db
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize and seed database on startup
+    await init_db()
+    yield
 
 app = FastAPI(
     title="StayEase AI Agent",
     description="Conversational accommodation booking agent for StayEase Bangladesh",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
