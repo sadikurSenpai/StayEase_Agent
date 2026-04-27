@@ -1,5 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.checkpoint.memory import MemorySaver
 from .state import AgentState
 from .nodes import classify_intent, agent_node, escalate_node
 from .tools import search_available_properties, get_listing_details, create_booking
@@ -33,19 +34,22 @@ def build_graph() -> StateGraph:
     # Conditional routing after intent classification
     workflow.add_conditional_edges("classify_intent", route_intent)
     
-    # Prebuilt routing for agent node to tools
+    # Prebuilt routing for agent node to tools (ReAct loop)
     workflow.add_conditional_edges(
         "agent_node",
         tools_condition,
         {"tools": "tool_node", END: END}
     )
     
-    # After tools are done, return to agent
+    # After tools are done, return to agent for final response
     workflow.add_edge("tool_node", "agent_node")
     
     # Escalation goes to END
     workflow.add_edge("escalate_node", END)
     
-    return workflow.compile()
+    # Add persistence
+    checkpointer = MemorySaver()
+    
+    return workflow.compile(checkpointer=checkpointer)
 
 graph = build_graph()

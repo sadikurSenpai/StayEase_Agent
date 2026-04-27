@@ -1,50 +1,75 @@
 import os
-from typing import Dict, Any
-from langchain_core.messages import AIMessage, HumanMessage
+from typing import Dict, Any, Literal
+from langchain_groq import ChatGroq
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from pydantic import BaseModel, Field
 from .state import AgentState
+from .tools import search_available_properties, get_listing_details, create_booking
+
+# Initialize LLM
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0,
+    api_key=os.environ.get("GROQ_API_KEY")
+)
+
+class IntentClassification(BaseModel):
+    """Plan for the next step based on the user's message."""
+    intent: Literal["search", "details", "book", "escalate"] = Field(
+        description="The classified intent of the user's message."
+    )
 
 def classify_intent(state: AgentState) -> dict:
     """
-    Analyzes the latest user message to categorize the intent.
-    Updates the state with the detected intent.
+    Analyzes the latest user message to categorize the intent using the LLM.
     """
-    # Simple keyword-based classification for the skeleton
-    last_message = state["messages"][-1].content.lower()
+    system_prompt = (
+        "You are an intent classifier for StayEase, a rental platform in Bangladesh. "
+        "Classify the user's message into one of these categories:\n"
+        "- search: If the user is looking for available properties, rooms, or stays.\n"
+        "- details: If the user is asking for more info about a specific property or listing.\n"
+        "- book: If the user wants to confirm a booking or make a reservation.\n"
+        "- escalate: If the user's request is outside these three (e.g., complaints, complex support, unrelated topics)."
+    )
     
-    if any(k in last_message for k in ["book", "confirm", "reserve"]):
-        intent = "book"
-    elif any(k in last_message for k in ["detail", "info", "about", "tell me more"]):
-        intent = "details"
-    elif any(k in last_message for k in ["search", "find", "available", "room", "stay"]):
-        intent = "search"
-    else:
-        # Default or escalate if it's completely off-topic
-        intent = "search" # Default to search for now
-        
-    return {"intent": intent}
+    # Using structured output for classification
+    structured_llm = llm.with_structured_output(IntentClassification)
+    response = structured_llm.invoke([
+        SystemMessage(content=system_prompt),
+        *state["messages"]
+    ])
+    
+    return {"intent": response.intent}
 
 def agent_node(state: AgentState) -> dict:
     """
-    Decides whether to call a tool or reply to the user.
-    For this skeleton, we return a mock response that simulates the agent's behavior.
+    The main agent node that decides which tool to call or responds to the user.
     """
-    # In a real implementation, you'd call ChatGroq(api_key=...).bind_tools(tools)
-    intent = state.get("intent", "search")
+    system_prompt = (
+        "You are the StayEase AI Assistant, helping guests find and book accommodations in Bangladesh. "
+        "You must handle three main tasks: search for properties, provide details, and create bookings. "
+        "Always be polite, helpful, and concise. All prices are in BDT. "
+        "Current context: User's intent is classified as {intent}."
+    ).format(intent=state.get("intent"))
     
-    # Mocking the AI's response based on intent
-    if intent == "search":
-        content = "I'm searching for available properties for you..."
-    elif intent == "details":
-        content = "Let me get the details for that property."
-    elif intent == "book":
-        content = "Processing your booking request."
-    else:
-        content = "How can I help you today?"
-        
-    return {"messages": [AIMessage(content=content)]}
+    # Bind tools to the LLM
+    tools = [search_available_properties, get_listing_details, create_booking]
+    llm_with_tools = llm.bind_tools(tools)
+    
+    response = llm_with_tools.invoke([
+        SystemMessage(content=system_prompt),
+        *state["messages"]
+    ])
+    
+    return {"messages": [response]}
 
 def escalate_node(state: AgentState) -> dict:
     """
-    Handles messages that fall outside the three main intents.
+    Handles out-of-scope requests by politely informing the user about human escalation.
     """
-    return {"messages": [AIMessage(content="I'm sorry, I can only help with searching, details, and booking. I'll escalate this to a human agent.")]}
+    response_text = (
+        "I'm sorry, I'm only able to assist with searching for properties, providing listing details, "
+        "and managing bookings at the moment. I've escalated your request to a human representative "
+        "who will get back to you shortly. Is there anything else I can help with regarding our rentals?"
+    )
+    return {"messages": [AIMessage(content=response_text)]}

@@ -62,13 +62,27 @@ async def seed_data():
 
 async def init_db():
     print(f"Connecting to {DATABASE_URL}...")
-    engine = create_async_engine(DATABASE_URL)
-    async with engine.begin() as conn:
-        # Create tables
-        await conn.run_sync(Base.metadata.create_all)
     
-    await seed_data()
-    await engine.dispose()
+    # Retry logic for Docker startup
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            engine = create_async_engine(DATABASE_URL)
+            async with engine.begin() as conn:
+                # Create tables
+                await conn.run_sync(Base.metadata.create_all)
+            
+            await seed_data()
+            await engine.dispose()
+            print("Database initialization successful.")
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"Database not ready yet (attempt {attempt + 1}/{max_retries}). Retrying in 2s...")
+                await asyncio.sleep(2)
+            else:
+                print("Max retries reached. Database connection failed.")
+                raise e
 
 if __name__ == "__main__":
     asyncio.run(init_db())
