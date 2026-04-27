@@ -11,6 +11,10 @@ from schemas import (
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
+#   - Both handlers are fully typed (MessageRequest in, MessageResponse / ConversationHistoryResponse out)
+#   - Both accept the AsyncSession dependency so they're ready to receive DB calls
+#   - Both raise 501 stubs until the agent service layer is wired in
+#   - OpenAPI error responses documented via responses= for each possible HTTP error code
 
 @router.post(
     "/{conversation_id}/message",

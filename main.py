@@ -8,6 +8,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Mounts the chat router under /api, so final paths are /api/chat/{id}/message and /api/chat/{id}/history
 app.include_router(chat.router, prefix="/api")
 
 @app.get("/")
