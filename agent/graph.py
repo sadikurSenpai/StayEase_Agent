@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from langchain_core.messages import AIMessage
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -41,7 +42,7 @@ builder = StateGraph(AgentState)
 
 builder.add_node("classify_intent", classify_intent)
 builder.add_node("call_agent", call_agent)
-builder.add_node("run_tools", ToolNode(TOOLS))  # executes tool_calls from call_agent
+builder.add_node("run_tools", ToolNode(TOOLS))
 builder.add_node("escalate", escalate)
 
 builder.add_edge(START, "classify_intent")
@@ -58,9 +59,8 @@ builder.add_conditional_edges(
     {"run_tools": "run_tools", "__end__": END},
 )
 
-builder.add_edge("run_tools", "call_agent")  # ReAct loop
+builder.add_edge("run_tools", "call_agent")
 builder.add_edge("escalate", END)
 
-# TODO: replace with builder.compile(checkpointer=PostgresSaver(conn)) once
-#       the PostgresSaver is wired to the AsyncSession from database.py
-graph = builder.compile()
+# Phase 1: MemorySaver keeps state in-process across invocations.
+graph = builder.compile(checkpointer=MemorySaver())

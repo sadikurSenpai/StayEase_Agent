@@ -16,7 +16,8 @@ class SearchPropertiesInput(BaseModel):
 
 
 class ListingDetailsInput(BaseModel):
-    listing_id: int = Field(..., description="Primary key of the listing row")
+    listing_id: int | None = Field(None, description="Integer primary key — provide if already known from search results")
+    listing_name: str | None = Field(None, description="Property name — use when the guest refers to a property by name")
 
 
 class CreateBookingInput(BaseModel):
@@ -41,14 +42,21 @@ def search_available_properties(
     #   WHERE location ILIKE %location%
     #     AND available = true
     #     AND max_guests >= num_guests
-    return []
+    # Phase 1 stub: ToolNode passes the return value directly as ToolMessage content;
+    # an empty list [] causes a Groq 400 error, so we return a labelled placeholder.
+    return [{"status": "stub", "message": "No results — DB not connected yet (Phase 2)"}]
 
 
 @tool(args_schema=ListingDetailsInput)
-def get_listing_details(listing_id: int) -> dict:
-    """Fetch the full details of a single listing row by its primary key."""
-    # TODO: async DB query — SELECT * FROM listings WHERE id = listing_id
-    return {}
+def get_listing_details(
+    listing_id: int | None = None,
+    listing_name: str | None = None,
+) -> dict:
+    """Fetch the full details of a listing by its ID or by name."""
+    # TODO: async DB query —
+    #   SELECT * FROM listings WHERE id = listing_id
+    #   OR WHERE name ILIKE %listing_name%
+    return {"status": "stub", "message": "No details — DB not connected yet (Phase 2)"}
 
 
 @tool(args_schema=CreateBookingInput)
@@ -63,7 +71,7 @@ def create_booking(
     #   1. fetch price_per_night from listings WHERE id = listing_id
     #   2. total_price = price_per_night * (check_out - check_in).days
     #   3. INSERT INTO bookings (listing_id, guest_name, check_in, check_out, total_price)
-    return {}
+    return {"status": "stub", "message": "Booking not created — DB not connected yet (Phase 2)"}
 
 
 # Exported list consumed by ToolNode in graph.py
