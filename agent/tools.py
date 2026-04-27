@@ -1,78 +1,37 @@
-from __future__ import annotations
-
-import datetime
-
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-
-#  Input schemas 
-
 class SearchPropertiesInput(BaseModel):
-    location: str = Field(..., description="City or area name, e.g. Cox's Bazar")
-    check_in: datetime.date = Field(..., description="Check-in date (YYYY-MM-DD)")
-    check_out: datetime.date = Field(..., description="Check-out date (YYYY-MM-DD)")
-    num_guests: int = Field(..., ge=1, description="Number of guests")
+    location: str = Field(description="The city or location where the guest wants to stay (e.g., Cox's Bazar).")
+    check_in: str = Field(description="Check-in date in YYYY-MM-DD format.")
+    check_out: str = Field(description="Check-out date in YYYY-MM-DD format.")
+    guests: int = Field(description="Number of guests.")
+
+@tool("search_available_properties", args_schema=SearchPropertiesInput)
+def search_available_properties(location: str, check_in: str, check_out: str, guests: int) -> list[dict]:
+    """Search for available properties in a given location for specific dates and guest count."""
+    # Skeleton implementation
+    return [{"id": 1, "name": "Sea View Suite", "price_per_night": 5000}]
 
 
-class ListingDetailsInput(BaseModel):
-    listing_id: int | None = Field(None, description="Integer primary key — provide if already known from search results")
-    listing_name: str | None = Field(None, description="Property name — use when the guest refers to a property by name")
+class GetListingDetailsInput(BaseModel):
+    listing_id: int = Field(description="The unique ID of the property listing.")
+
+@tool("get_listing_details", args_schema=GetListingDetailsInput)
+def get_listing_details(listing_id: int) -> dict:
+    """Retrieve detailed information and description for a specific property listing."""
+    # Skeleton implementation
+    return {"id": listing_id, "description": "A beautiful suite with sea views.", "max_guests": 2}
 
 
 class CreateBookingInput(BaseModel):
-    listing_id: int = Field(..., description="Primary key of the listing to book")
-    guest_name: str = Field(..., description="Full name of the guest")
-    check_in: datetime.date = Field(..., description="Check-in date (YYYY-MM-DD)")
-    check_out: datetime.date = Field(..., description="Check-out date (YYYY-MM-DD)")
+    listing_id: int = Field(description="The unique ID of the property to book.")
+    guest_name: str = Field(description="The name of the guest making the booking.")
+    check_in: str = Field(description="Check-in date in YYYY-MM-DD format.")
+    check_out: str = Field(description="Check-out date in YYYY-MM-DD format.")
 
-
-#  Tool definitions 
-
-@tool(args_schema=SearchPropertiesInput)
-def search_available_properties(
-    location: str,
-    check_in: datetime.date,
-    check_out: datetime.date,
-    num_guests: int,
-) -> list[dict]:
-    """Search listings table for available properties matching location, dates, and guest count."""
-    # TODO: async DB query —
-    #   SELECT * FROM listings
-    #   WHERE location ILIKE %location%
-    #     AND available = true
-    #     AND max_guests >= num_guests
-    # Phase 1 stub: ToolNode passes the return value directly as ToolMessage content;
-    # an empty list [] causes a Groq 400 error, so we return a labelled placeholder.
-    return [{"status": "stub", "message": "No results — DB not connected yet (Phase 2)"}]
-
-
-@tool(args_schema=ListingDetailsInput)
-def get_listing_details(
-    listing_id: int | None = None,
-    listing_name: str | None = None,
-) -> dict:
-    """Fetch the full details of a listing by its ID or by name."""
-    # TODO: async DB query —
-    #   SELECT * FROM listings WHERE id = listing_id
-    #   OR WHERE name ILIKE %listing_name%
-    return {"status": "stub", "message": "No details — DB not connected yet (Phase 2)"}
-
-
-@tool(args_schema=CreateBookingInput)
-def create_booking(
-    listing_id: int,
-    guest_name: str,
-    check_in: datetime.date,
-    check_out: datetime.date,
-) -> dict:
-    """Insert a new row into the bookings table and return confirmation details."""
-    # TODO: async DB query —
-    #   1. fetch price_per_night from listings WHERE id = listing_id
-    #   2. total_price = price_per_night * (check_out - check_in).days
-    #   3. INSERT INTO bookings (listing_id, guest_name, check_in, check_out, total_price)
-    return {"status": "stub", "message": "Booking not created — DB not connected yet (Phase 2)"}
-
-
-# Exported list consumed by ToolNode in graph.py
-TOOLS = [search_available_properties, get_listing_details, create_booking]
+@tool("create_booking", args_schema=CreateBookingInput)
+def create_booking(listing_id: int, guest_name: str, check_in: str, check_out: str) -> dict:
+    """Create a new booking for a guest and return the booking confirmation."""
+    # Skeleton implementation
+    return {"booking_id": 123, "status": "confirmed"}

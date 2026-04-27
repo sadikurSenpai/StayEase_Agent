@@ -1,66 +1,51 @@
-from __future__ import annotations
+from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import ToolNode, tools_condition
+from .state import AgentState
+from .nodes import classify_intent, agent_node, escalate_node
+from .tools import search_available_properties, get_listing_details, create_booking
 
-from typing import Literal
+def route_intent(state: AgentState) -> str:
+    """Route to agent or escalate based on intent."""
+    intent = state.get("intent")
+    if intent == "escalate":
+        return "escalate_node"
+    return "agent_node"
 
-from langchain_core.messages import AIMessage
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
+def build_graph() -> StateGraph:
+    """
+    Constructs the LangGraph state graph for the StayEase agent.
+    """
+    workflow = StateGraph(AgentState)
+    
+    # Define tools and tool node
+    tools = [search_available_properties, get_listing_details, create_booking]
+    tool_node = ToolNode(tools)
+    
+    # Add nodes
+    workflow.add_node("classify_intent", classify_intent)
+    workflow.add_node("agent_node", agent_node)
+    workflow.add_node("tool_node", tool_node)
+    workflow.add_node("escalate_node", escalate_node)
+    
+    # Add edges
+    workflow.add_edge(START, "classify_intent")
+    
+    # Conditional routing after intent classification
+    workflow.add_conditional_edges("classify_intent", route_intent)
+    
+    # Prebuilt routing for agent node to tools
+    workflow.add_conditional_edges(
+        "agent_node",
+        tools_condition,
+        {"tools": "tool_node", END: END}
+    )
+    
+    # After tools are done, return to agent
+    workflow.add_edge("tool_node", "agent_node")
+    
+    # Escalation goes to END
+    workflow.add_edge("escalate_node", END)
+    
+    return workflow.compile()
 
-from agent.nodes import call_agent, classify_intent, escalate
-from agent.state import AgentState
-from agent.tools import TOOLS
-
-
-#  Conditional routing functions 
-
-def route_after_classify(
-    state: AgentState,
-) -> Literal["call_agent", "escalate"]:
-    """Route to escalate when intent is out-of-scope; otherwise enter the ReAct loop."""
-    if state.get("intent") == "escalate":
-        return "escalate"
-    return "call_agent"
-
-
-def route_after_agent(
-    state: AgentState,
-) -> Literal["run_tools", "__end__"]:
-    """Route to run_tools when the agent produced tool_calls; otherwise end the graph."""
-    messages = state.get("messages", [])
-    if not messages:
-        return "__end__"
-    last = messages[-1]
-    if isinstance(last, AIMessage) and last.tool_calls:
-        return "run_tools"
-    return "__end__"
-
-
-#  Graph construction 
-
-builder = StateGraph(AgentState)
-
-builder.add_node("classify_intent", classify_intent)
-builder.add_node("call_agent", call_agent)
-builder.add_node("run_tools", ToolNode(TOOLS))
-builder.add_node("escalate", escalate)
-
-builder.add_edge(START, "classify_intent")
-
-builder.add_conditional_edges(
-    "classify_intent",
-    route_after_classify,
-    {"call_agent": "call_agent", "escalate": "escalate"},
-)
-
-builder.add_conditional_edges(
-    "call_agent",
-    route_after_agent,
-    {"run_tools": "run_tools", "__end__": END},
-)
-
-builder.add_edge("run_tools", "call_agent")
-builder.add_edge("escalate", END)
-
-# Phase 1: MemorySaver keeps state in-process across invocations.
-graph = builder.compile(checkpointer=MemorySaver())
+graph = build_graph()
