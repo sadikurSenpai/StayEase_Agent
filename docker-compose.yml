@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:15
+    container_name: stayease_db_container
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-stayease_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-stayease_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: stayease_app
+    ports:
+      - "8011:8000"
+    environment:
+      # Automatically construct the internal URL for Docker
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-stayease_user}:${POSTGRES_PASSWORD:-your_secure_password}@db:5432/${POSTGRES_DB:-stayease_db}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
