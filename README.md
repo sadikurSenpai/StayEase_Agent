@@ -35,7 +35,7 @@ StayEase_Agent/
 StayEase AI Agent is a conversational booking assistant that handles three guest intents: searching for available properties, retrieving listing details, and creating bookings. A FastAPI backend receives guest messages over HTTP and delegates each message to a LangGraph agent. The agent classifies the intent, calls the appropriate database-backed tool via a ReAct loop, and returns a natural-language reply. 
 
 > [!IMPORTANT]
-> **End-to-End Implementation**: While the task requirements specify an architectural design, this project is **fully functional**. It includes a complete backend stack with a persistent PostgreSQL database and an automated test suite.
+> **End-to-End Implementation**: While the task requirements specify an architectural design, this project is **fully functional**. It includes a complete backend stack with a persistent PostgreSQL database and an automated test suite. You can see the test results in the terminal after running the test script. The running instructions are in the **[Quick Start](#3-quick-start-build--test)** section below.
 
 ```mermaid
 graph TD
@@ -43,10 +43,10 @@ graph TD
     Start((START))
     End((END))
     
-    Classify["<b>classify_intent</b><br/><i>Node: Identifies guest goal</i>"]
-    Agent["<b>agent_node</b><br/><i>Node: LLM Reasoning (ReAct)</i>"]
-    Tools["<b>tool_node</b><br/><i>Node: Executes search/details/book</i>"]
-    Escalate["<b>escalate_node</b><br/><i>Node: Handles out-of-scope</i>"]
+    Classify[classify_intent]
+    Agent[agent_node]
+    Tools[tool_node]
+    Escalate[escalate_node]
 
     %% Graph Flow & Conditional Routing
     Start --> Classify
@@ -69,8 +69,8 @@ graph TD
     %% External Systems subgraph
     subgraph "External Integrations"
         direction LR
-        LLM[("<b>Groq / OpenRouter</b><br/>(LLM Reasoning)")]
-        DB[(<b>PostgreSQL</b><br/>(Listing & Booking Data))]
+        LLM("Groq / OpenRouter LLM")
+        DB[("PostgreSQL Database")]
     end
 
     %% Interaction links
@@ -165,7 +165,7 @@ class AgentState(TypedDict):
 ---
 
 ## 2. API Contract
-The full API documentation, including request/response schemas and realistic Bangladeshi examples, can be found in **[api.md](file:///home/md-shadikur-rahman-sheam/DataCrata_new/StayEase_Agent/api.md)**.
+The full API documentation, including request/response schemas and realistic Bangladeshi examples, can be found in **[api.md](api.md)**.
 
 ---
 
