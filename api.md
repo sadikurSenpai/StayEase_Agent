@@ -1,102 +1,80 @@
-# StayEase API Contract
+# StayEase API Documentation 
 
-This document outlines the API endpoints for interacting with the StayEase AI Agent.
-
-## 1. Send Message
-`POST /api/chat/{conversation_id}/message`
-
-Send a guest message to the AI agent for processing.
-
-### Request Schema
-- **Path Parameters**:
-  - `conversation_id` (string): Unique identifier for the conversation (thread_id).
-- **Body**:
-  ```json
-  {
-    "message": "string"
-  }
-  ```
-
-### Response Schema
-- **Status Code: 200 OK**
-  ```json
-  {
-    "reply": "string"
-  }
-  ```
-
-### Example
-**Request**:
-`POST /api/chat/conv_12345/message`
-```json
-{
-  "message": "I need a room in Cox's Bazar for 2 guests on May 1st for 2 nights."
-}
-```
-
-**Response**:
-```json
-{
-  "reply": "I found a few options for you in Cox's Bazar! The 'Sea View Suite' is available for 5000 BDT per night. Would you like to see more details or book this room?"
-}
-```
-
-### Error Responses
-| Code | Description | Example Body |
-|---|---|---|
-| 400 | Invalid request body or missing message. | `{"detail": "Message cannot be empty"}` |
-| 500 | Internal agent processing error. | `{"detail": "Agent failed to respond"}` |
+Welcome to the StayEase API. This document explains how you can talk to our AI booking assistant. It’s pretty straightforward—you send a message, the agent thinks and talks to the database, and then gives you a reply. We’ve also got a way for you to pull up the whole chat history if you need to.
 
 ---
 
-## 2. Get Conversation History
-`GET /api/chat/{conversation_id}/history`
+## 1. Chat with the Agent
+`POST /api/chat/{conversation_id}/message`
 
-Retrieve the full message history for a specific conversation.
+This is where all the magic happens. When a guest types something, you send it here. The agent will figure out if they're looking for a beach house in Cox's Bazar, asking about prices in Sylhet, or ready to book a stay at Saint Martin.
 
-### Request Schema
-- **Path Parameters**:
-  - `conversation_id` (string): Unique identifier for the conversation.
-
-### Response Schema
-- **Status Code: 200 OK**
+### What you need to send (Request)
+- **Path Parameter**: 
+  - `conversation_id`: A unique string for the session (like `conv_789`). This helps the agent remember what was said before in the same chat.
+- **JSON Body**:
   ```json
   {
-    "conversation_id": "string",
+    "content": "I'm looking for a room in Cox's Bazar for 2 people, starting tomorrow for 3 nights."
+  }
+  ```
+
+### What the agent sends back (Response)
+- **Status**: `200 OK`
+- **JSON Body**:
+  ```json
+  {
+    "conversation_id": "conv_789",
+    "role": "assistant",
+    "content": "I found some great options for you! The 'Sea View Suite' is available for 5000 BDT per night. It's got a beautiful view of the Bay of Bengal. Would you like to know more about it?"
+  }
+  ```
+
+### If something goes wrong (Errors)
+- **400 Bad Request**: Usually happens if the message is empty.
+  - `{"detail": "Message cannot be empty"}`
+- **500 Server Error**: If our AI agent hits a snag or the database is being slow.
+  - `{"detail": "Agent error: [specific error message]"}`
+
+---
+
+## 2. Get the Chat History
+`GET /api/chat/{conversation_id}/history`
+
+If your app needs to reload the chat or show the guest what they talked about earlier, use this endpoint. It pulls everything from the database—both what the user said and how the agent replied.
+
+### What you need to send (Request)
+- **Path Parameter**: 
+  - `conversation_id`: The ID of the chat you want to retrieve.
+
+### What you get back (Response)
+- **Status**: `200 OK`
+- **JSON Body**:
+  ```json
+  {
+    "conversation_id": "conv_789",
     "messages": [
       {
-        "role": "guest | agent",
-        "content": "string",
-        "timestamp": "ISO-8601 string"
+        "role": "user",
+        "content": "I'm looking for a room in Cox's Bazar for 2 people...",
+        "timestamp": "2026-05-01T10:00:00Z"
+      },
+      {
+        "role": "assistant",
+        "content": "I found some great options for you! The 'Sea View Suite' is available for 5000 BDT per night...",
+        "timestamp": "2026-05-01T10:00:05Z"
       }
     ]
   }
   ```
 
-### Example
-**Request**:
-`GET /api/chat/conv_12345/history`
+### If the chat isn't there (Errors)
+- **404 Not Found**: If you ask for a `conversation_id` that doesn't exist yet.
+  - `{"detail": "Conversation not found"}`
+- **500 Server Error**: If we can't talk to the database.
+  - `{"detail": "History error: [specific error message]"}`
 
-**Response**:
-```json
-{
-  "conversation_id": "conv_12345",
-  "messages": [
-    {
-      "role": "guest",
-      "content": "I need a room in Cox's Bazar for 2 guests on May 1st for 2 nights.",
-      "timestamp": "2026-05-01T10:00:00Z"
-    },
-    {
-      "role": "agent",
-      "content": "I found a few options for you in Cox's Bazar! The 'Sea View Suite' is available for 5000 BDT per night. Would you like to see more details or book this room?",
-      "timestamp": "2026-05-01T10:00:05Z"
-    }
-  ]
-}
-```
+---
 
-### Error Responses
-| Code | Description | Example Body |
-|---|---|---|
-| 404 | Conversation ID not found. | `{"detail": "Conversation not found"}` |
+> [!TIP]
+> All prices are handled in **BDT** (Bangladeshi Taka). When the agent talks about locations like Cox's Bazar, Sylhet, or Saint Martin, it's pulling real-time data from our `listings` table.
